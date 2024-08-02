@@ -1,0 +1,133 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #c3c8c0;
+    color: #495057;
+}
+
+h1, h2 {
+    color: #343a40;
+}
+
+.description {
+    transition: all 0.3s ease; /* Animation douce pour la transition */
+}
+
+.description:hover {
+    color: #5fc17c; /* Changer la couleur du texte */
+    transform: scale(1.1); /* Agrandir le texte au survol */
+}
+
+.logo {
+    height: 50px;
+    width: auto;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+}
+
+.table-container {
+    margin-top: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+}
+
+.table {
+    margin-bottom: 20px;
+}
+
+.button-container {
+    display: flex; /* Utiliser flexbox pour aligner les boutons */
+    justify-content: center; /* Centrer les boutons horizontalement */
+    gap: 10px; /* Espacement entre les boutons */
+    margin-bottom: 20px; /* Espacement en bas */
+}
+
+button.btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.3s, transform 0.3s; /* Transition pour couleur de fond et animation */
+    display: inline-flex;
+    align-items: center;
+}
+
+button.btn-primary {
+    background-color: #007bff;
+    color: #fff;
+}
+
+button.btn-primary:hover {
+    background-color: #0056b3;
+    transform: scale(1.05); /* Agrandir légèrement au survol */
+}
+
+button.btn-success {
+    background-color: #28a745;
+    color: #fff;
+}
+
+button.btn-success:hover {
+    background-color: #218838;
+    transform: scale(1.05); /* Agrandir légèrement au survol */
+}
+
+button.btn-info {
+    background-color: #007bff;
+    color: #fff;
+}
+
+button.btn-info:hover {
+    background-color: #117a8b;
+    transform: scale(1.05); /* Agrandir légèrement au survol */
+}
+
+input[type="file"] {
+    margin-top: 10px;
+}
+
+input[type="text"], input[type="number"], input[type="date"] {
+    width: 100%;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+.card {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.alertes-container {
+    text-align: center;
+}
+
+.alertes-card {
+    margin-bottom: 20px;
+}
+
+.list-group-item.alert-low-stock {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+    border-radius: 5px;
+}
+
+.list-group-item.alert-low-stock:hover {
+    background-color: #f5c6cb;
+    color: #491217;
+}
+
+.list-group-item.alert-low-stock .fa-exclamation-triangle {
+    margin-right: 10px; /* Espace entre l'icône et le texte */
+}
