@@ -9,6 +9,38 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.0/jspdf.umd.min.js"></script>
+    <style>
+        .product-summary {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #9dd08d;
+        }
+
+        .product-summary h4 {
+            color: #2c3e50;
+        }
+
+        .product-summary p {
+            color: #34495e;
+        }
+
+        .alertes-card {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .alertes-card .card-title {
+            color: #721c24;
+        }
+
+        .alertes-card .list-group-item {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-5">
@@ -56,7 +88,14 @@
                 <button class="btn btn-success" onclick="exportTableToExcel()"><i class="fas fa-file-excel"></i> Exporter en Excel</button>
                 <input type="file" id="fileInputExcel" class="form-control-file mt-2" accept=".xlsx, .xls" style="display: none;" onchange="importFromExcel(event)">
                 <button class="btn btn-info" onclick="document.getElementById('fileInputExcel').click();"><i class="fas fa-file-import"></i> Importer Excel</button>
+                <button class="btn btn-warning" onclick="generateSummary()"><i class="fas fa-file-alt"></i> Générer Synthèse</button>
+                <button class="btn btn-danger" onclick="downloadSummary()"><i class="fas fa-download"></i> Télécharger Synthèse</button>
             </div>
+        </div>
+        
+        <div id="summaryContainer" class="mt-5" style="display: none;">
+            <h2>Synthèse des Produits</h2>
+            <div id="summaryContent" class="p-3 mb-2 bg-light border rounded"></div>
         </div>
     </div>
 
@@ -89,6 +128,7 @@
             var rowIndex = Array.from(row.parentNode.children).indexOf(row);
             var columnIndex = Array.from(row.children).indexOf(element.parentElement);
             allData[rowIndex][columnIndex] = element.value;
+            calculateStock(element);
         }
 
         function calculateStock(element) {
@@ -99,7 +139,6 @@
 
             qtyStock.value = qtyIn - qtyOut;
             checkLowStock(row);
-            updateAllData(qtyStock);
         }
 
         function checkLowStock(row) {
@@ -128,107 +167,167 @@
             var csv = [];
             csv.push("Produit,Type,Quantité Entrante,Quantité Sortante,Quantité en Stock,Date d'Entrée,Date de Sortie");
 
-            allData.forEach(row => {
-                csv.push(row.join(","));
-            });
 
-            var csvString = csv.join("\n");
-            var a = document.createElement('a');
-            a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvString);
-            a.target = '_blank';
-            a.download = 'Gestion_de_Stock.csv';
-            a.click();
-        }
+        allData.forEach(row => {
+            csv.push(row.join(","));
+        });
 
-        function exportTableToExcel() {
-            updateStockQuantities();
-            var wb = XLSX.utils.book_new();
-            var ws_data = [["Produit", "Type", "Quantité Entrante", "Quantité Sortante", "Quantité en Stock", "Date d'Entrée", "Date de Sortie"]];
+        var csvString = csv.join("\n");
+        var a = document.createElement('a');
+        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvString);
+        a.target = '_blank';
+        a.download = 'Gestion_de_Stock.csv';
+        a.click();
+    }
 
-            allData.forEach(row => {
-                ws_data.push(row);
-            });
+    function exportTableToExcel() {
+        updateStockQuantities();
+        var wb = XLSX.utils.book_new();
+        var ws_data = [["Produit", "Type", "Quantité Entrante", "Quantité Sortante", "Quantité en Stock", "Date d'Entrée", "Date de Sortie"], ...allData];
+        var ws = XLSX.utils.aoa_to_sheet(ws_data);
+        XLSX.utils.book_append_sheet(wb, ws, "Stock");
+        XLSX.writeFile(wb, "Gestion_de_Stock.xlsx");
+    }
 
-            var ws = XLSX.utils.aoa_to_sheet(ws_data);
-            XLSX.utils.book_append_sheet(wb, ws, 'Stock Data');
-            XLSX.writeFile(wb, 'Gestion_de_Stock.xlsx');
-        }
+    function updateStockQuantities() {
+        var tableRows = document.querySelectorAll('#stockTable tbody tr');
+        tableRows.forEach((row, rowIndex) => {
+            var qtyIn = parseInt(row.querySelector('input[placeholder="Quantité Entrante"]').value) || 0;
+            var qtyOut = parseInt(row.querySelector('input[placeholder="Quantité Sortante"]').value) || 0;
+            var qtyStock = row.querySelector('input[placeholder="Quantité en Stock"]');
+            qtyStock.value = qtyIn - qtyOut;
+            allData[rowIndex][4] = qtyStock.value;
+        });
+    }
 
-        function updateStockQuantities() {
-            var rows = document.querySelectorAll('#stockTable tbody tr');
-            rows.forEach((row, index) => {
-                var inputs = row.querySelectorAll('input');
-                var qtyIn = parseInt(inputs[2].value) || 0;
-                var qtyOut = parseInt(inputs[3].value) || 0;
-                var qtyStock = qtyIn - qtyOut;
-                inputs[4].value = qtyStock;
-                allData[index][4] = qtyStock.toString();
-                checkLowStock(row);
-            });
-        }
+    function importFromExcel(event) {
+    var file = event.target.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var data = new Uint8Array(e.target.result);
+        var workbook = XLSX.read(data, {type: 'array'});
+        var sheetName = workbook.SheetNames[0];
+        var worksheet = workbook.Sheets[sheetName];
+        var json = XLSX.utils.sheet_to_json(worksheet, {header: 1, raw: false, dateNF: 'yyyy-mm-dd'});
 
-        function importFromExcel(event) {
-            var input = event.target;
-            var reader = new FileReader();
-            reader.onload = function () {
-                var data = new Uint8Array(reader.result);
-                var workbook = XLSX.read(data, { type: 'array' });
-                var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                var jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: true });
-
-                var table = document.getElementById("stockTable").getElementsByTagName('tbody')[0];
-                table.innerHTML = ''; // Clear existing table data
-                allData = []; // Clear existing data
-
-                var alertsList = document.getElementById("lowStockAlerts");
-                alertsList.innerHTML = ''; // Clear existing alerts
-
-                jsonData.forEach((row, index) => {
-                    if (index > 0) { // Ignorer l'en-tête
-                        var newRow = table.insertRow();
-                        var rowData = [];
-                        row.forEach((cell, cellIndex) => {
-                            var newCell = newRow.insertCell();
-                            var input = document.createElement("input");
-                            if (cellIndex === 5 || cellIndex === 6) {
-                                input.type = "date";
-                                if (typeof cell === 'number') {
-                                    // Convert Excel serial date to a readable date format
-                                    var date = new Date((cell - (25567 + 2)) * 86400 * 1000);
-                                    input.value = date.toISOString().split('T')[0];
-                                } else {
-                                    input.value = cell;
-                                }
-                            } else {
-                                input.type = "text";
-                                input.value = cell;
-                                if (cellIndex === 2 || cellIndex === 3) {
-                                    input.type = "number";
-                                    input.onchange = function() { calculateStock(this); };
-                                }
-                            }
-                            input.className = "form-control";
-                            input.readOnly = cellIndex === 4;
-                            input.onchange = function() { updateAllData(this); };
-                            newCell.appendChild(input);
-                            rowData.push(cell);
-                        });
-                        allData.push(rowData);
-
-                        // Vérifier la quantité en stock et ajouter une alerte si nécessaire
-                        var qtyStock = parseInt(row[4]);
-                        if (qtyStock < 5) {
-                            var alertItem = document.createElement("li");
-                            alertItem.className = "list-group-item list-group-item-danger";
-                            alertItem.textContent = `Alerte : Le stock de ${row[0]} est faible (${qtyStock})`;
-                            alertsList.appendChild(alertItem);
+        allData = json.slice(1).map(row => {
+            return row.map((cell, index) => {
+                // Convert Excel dates to JavaScript Date objects for the date columns (index 5 and 6)
+                if (index === 5 || index === 6) {
+                    if (cell) {
+                        var date = new Date(cell);
+                        if (!isNaN(date.getTime())) {
+                            return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
                         }
                     }
-                });
-                updateStockQuantities();
-            };
-            reader.readAsArrayBuffer(input.files[0]);
+                }
+                return cell || '';
+            });
+        });
+        updateTableFromAllData();
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+    function updateTableFromAllData() {
+        var tableBody = document.querySelector('#stockTable tbody');
+        tableBody.innerHTML = '';
+
+        allData.forEach(rowData => {
+            var newRow = tableBody.insertRow();
+            newRow.innerHTML = `
+                <tr>
+                    <td><input type="text" class="form-control" placeholder="Produit" value="${rowData[0]}" onchange="updateAllData(this)"></td>
+                    <td><input type="text" class="form-control" placeholder="Type" value="${rowData[1]}" onchange="updateAllData(this)"></td>
+                    <td><input type="number" class="form-control" placeholder="Quantité Entrante" value="${rowData[2]}" onchange="calculateStock(this); updateAllData(this)"></td>
+                    <td><input type="number" class="form-control" placeholder="Quantité Sortante" value="${rowData[3]}" onchange="calculateStock(this); updateAllData(this)"></td>
+                    <td><input type="number" class="form-control" placeholder="Quantité en Stock" value="${rowData[4]}" readonly></td>
+                    <td><input type="date" class="form-control" placeholder="Date d'Entrée" value="${rowData[5]}" onchange="updateAllData(this)"></td>
+                    <td><input type="date" class="form-control" placeholder="Date de Sortie" value="${rowData[6]}" onchange="updateAllData(this)"></td>
+                </tr>`;
+        });
+    }
+
+    function generateSummary() {
+    var summaryContainer = document.getElementById('summaryContainer');
+    var summaryContent = document.getElementById('summaryContent');
+    summaryContent.innerHTML = '';
+
+    var rows = document.querySelectorAll('#stockTable tbody tr');
+    
+    rows.forEach(row => {
+        var product = row.querySelector('input[placeholder="Produit"]').value;
+        var qtyStock = row.querySelector('input[placeholder="Quantité en Stock"]').value;
+        
+        if (product && qtyStock) {
+            var productSummary = document.createElement('div');
+            productSummary.className = 'product-summary';
+            productSummary.innerHTML = `
+                <h4>${product}</h4>
+                <p>Quantité en stock: ${qtyStock}</p>`;
+            summaryContent.appendChild(productSummary);
         }
-    </script>
+    });
+
+    summaryContainer.style.display = 'block';
+}
+
+function downloadSummary() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Définir des couleurs
+    const headerColor = '#c1b1a0';
+    const textColor = '#b87333';
+    const backgroundColor = '#dbaa89';
+
+    // Définir les marges et les positions initiales
+    const margin = 15;
+    let y = margin;
+
+    // Ajouter un titre au PDF
+    doc.setFontSize(18);
+    doc.setTextColor(headerColor);
+    doc.text('Synthèse des Produits', margin, y);
+    y += 10;
+
+    // Ajouter une couleur d'arrière-plan pour les sections
+    doc.setFillColor(backgroundColor);
+    doc.rect(margin, y - 8, doc.internal.pageSize.width - 2 * margin, 8, 'F');
+    y += 10;
+
+    // Boucle à travers chaque résumé de produit
+    const rows = document.querySelectorAll('#summaryContent .product-summary');
+    rows.forEach((row) => {
+        const title = row.querySelector('h4').innerText;
+        const text = row.querySelector('p').innerText;
+
+        // Ajouter un titre de produit avec une couleur de texte
+        doc.setFontSize(14);
+        doc.setTextColor(headerColor);
+        doc.text(title, margin, y);
+        y += 10;
+
+        // Ajouter les détails du produit
+        doc.setFontSize(12);
+        doc.setTextColor(textColor);
+        doc.text(text, margin, y);
+        y += 15;
+
+        // Ajouter un espace entre les résumés
+        y += 10;
+
+        // Si nous atteignons la fin de la page, ajouter une nouvelle page
+        if (y > doc.internal.pageSize.height - margin) {
+            doc.addPage();
+            y = margin;
+        }
+    });
+
+    // Sauvegarder le PDF
+    doc.save('Synthese_Produits.pdf');
+}
+
+</script>
 </body>
 </html>
